@@ -10,6 +10,8 @@ model = PPO2(MlpPolicy, env, verbose=1)
 model.learn(total_timesteps=128)
 model.save("ppo2")
 
+# environment needs to account for positioning of the player etc.
+
 '''
 for _ in range(10):
     svgymwrapped.make_env().reset()
