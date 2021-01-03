@@ -89,6 +89,10 @@ class svEnv(gym.Env):
     imgequalflag = 1.0
     imgtiredflag = 0.1
 
+    # reporting
+    hooked = 0
+    nofish = 0
+
 
     # template to detect, if we hooked a fish
     exclamation = cv2.imread('exclamation.png',cv2.IMREAD_GRAYSCALE)
@@ -192,24 +196,36 @@ class svEnv(gym.Env):
         return img, reward, done, self.info
 
     def resetday(self):
+
+        print("Things hooked today: {}".format(self.hooked))
+        print("Fish hooked today: {}".format(self.hooked - self.nofish))
+        self.hooked = 0
+        self.nofish = 0
+
         time.sleep(1)
         # open inventory
         self.PressAndReleaseKey(self.E)
         #reset mouse to top left of left monitor 
+        self.MouseMoveTo(-9999, 0)
+        self.MouseMoveTo(0, -9999)
         self.MouseMoveTo(-9999, -9999)
         # move mouse to monitor 1
         self.MouseMoveTo(1280, 0)
         # move mouse to Exit Game
         self.MouseMoveTo(1064, 250)
+        time.sleep(0.5)
         self.left_click()
         # move mouse to Exit To Title
         self.MouseMoveTo(-150, 220)
+        time.sleep(0.5)
         self.left_click()
         # move mouse to Load
         self.MouseMoveTo(-80, 470)
+        time.sleep(0.5)
         self.left_click()
         # move mouse to Select Playthrough 1
         self.MouseMoveTo(0, -650)
+        time.sleep(0.5)
         self.left_click()
         time.sleep(3)
 
@@ -251,7 +267,8 @@ class svEnv(gym.Env):
         self.grab_fishing_screen()
 
         if self.done == True:
-            print("hooked something that is not a fish")
+            print("but it wasn't a  not a fish")
+            self.nofish += 1
             
             time.sleep(0.5)
 
@@ -391,6 +408,7 @@ class svEnv(gym.Env):
         if max_val > 0.50:
             hook = True
             print("hooked something")
+            self.hooked += 1
 
         # ------------
         imgequal = imgequal[956:1016, 1280+1220:1280+1280]
@@ -398,7 +416,7 @@ class svEnv(gym.Env):
         _, max_val, _, _ = cv2.minMaxLoc(result)
         if max_val < 0.6:
             print("inventory full, resetting day")
-            print("imgequal less than 0.6: {}".format(max_val))
+            #print("imgequal less than 0.6: {}".format(max_val))
             time.sleep(1)
             self.PressAndReleaseKey(self.C)
             time.sleep(2)
@@ -408,9 +426,9 @@ class svEnv(gym.Env):
         imgtired = imgtired[357:402, 1280+928:1280+988]
         result=cv2.matchTemplate(imgtired,self.imgtired,cv2.TM_CCOEFF_NORMED)
         _, max_val, _, _ = cv2.minMaxLoc(result)
-        if max_val > 0.2:
+        if max_val > 0.4:
             print(r"I'm tired, resetting day")
-            print("imgtired over 0.2: {}".format(max_val))
+            #print("imgtired over 0.4: {}".format(max_val))
             time.sleep(1)
             self.PressAndReleaseKey(self.C)
             time.sleep(2)
