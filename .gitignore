@@ -1,7 +1,11 @@
 # files
-.fish.png
-
-
+__pycache__/
+.pylintrc
+environment_functions.py
+inputclasses.py
+make.py
+play.py
+svgymwrapped.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
