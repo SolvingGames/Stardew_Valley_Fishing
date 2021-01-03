@@ -230,15 +230,6 @@ class svEnv(gym.Env):
 
     def hookfish(self):
         
-        # conditions wethere we should stop or not
-        if self.imgequalflag != 1.0:
-            print("inventory full, resetting day")
-            self.resetday()
-        
-        if self.imgtiredflag > 0.2:
-            print(r"I'm tired, resetting day")
-            self.resetday()
-
         # cast rod
         self.PressKey(self.C)
         time.sleep(1.04)
@@ -402,18 +393,28 @@ class svEnv(gym.Env):
             print("hooked something")
 
         # ------------
-        imgequal = imgequal[956:1016, 1280+1220:1280+1341]
+        imgequal = imgequal[956:1016, 1280+1220:1280+1280]
         result=cv2.matchTemplate(imgequal,self.imgequal,cv2.TM_CCOEFF_NORMED)
         _, max_val, _, _ = cv2.minMaxLoc(result)
-        #self.imgequalflag = max_val
-        print("imgequal",max_val)
+        if max_val < 0.6:
+            print("inventory full, resetting day")
+            print("imgequal less than 0.6: {}".format(max_val))
+            time.sleep(1)
+            self.PressAndReleaseKey(self.C)
+            time.sleep(2)
+            self.resetday()
 
         # ------------
         imgtired = imgtired[357:402, 1280+928:1280+988]
         result=cv2.matchTemplate(imgtired,self.imgtired,cv2.TM_CCOEFF_NORMED)
         _, max_val, _, _ = cv2.minMaxLoc(result)
-        #print("imgtired",max_val)
-        self.imgtiredflag = max_val
+        if max_val > 0.2:
+            print(r"I'm tired, resetting day")
+            print("imgtired over 0.2: {}".format(max_val))
+            time.sleep(1)
+            self.PressAndReleaseKey(self.C)
+            time.sleep(2)
+            self.resetday()
 
         #preview
         if self.show_preview == True:
