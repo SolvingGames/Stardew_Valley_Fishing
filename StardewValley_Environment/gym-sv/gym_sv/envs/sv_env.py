@@ -222,6 +222,7 @@ class svEnv(gym.Env):
         self.PressKey(self.S)
         time.sleep(8.5)
         self.ReleaseKey(self.S)
+        time.sleep(0.5)
         # walk right 
         self.PressKey(self.D)
         time.sleep(2.9)
@@ -401,17 +402,17 @@ class svEnv(gym.Env):
             print("hooked something")
 
         # ------------
-        imgequal = imgequal[956:1016, 1280+1283:1280+1341]
+        imgequal = imgequal[956:1016, 1280+1220:1280+1341]
         result=cv2.matchTemplate(imgequal,self.imgequal,cv2.TM_CCOEFF_NORMED)
         _, max_val, _, _ = cv2.minMaxLoc(result)
-        self.imgequalflag = max_val
+        #self.imgequalflag = max_val
         print("imgequal",max_val)
 
         # ------------
         imgtired = imgtired[357:402, 1280+928:1280+988]
         result=cv2.matchTemplate(imgtired,self.imgtired,cv2.TM_CCOEFF_NORMED)
         _, max_val, _, _ = cv2.minMaxLoc(result)
-        print("imgtired",max_val)
+        #print("imgtired",max_val)
         self.imgtiredflag = max_val
 
         #preview
