@@ -100,11 +100,12 @@ class svEnv(gym.Env):
     donefish = cv2.imread('donefish.png',cv2.IMREAD_GRAYSCALE)
     imgequal = cv2.imread('imgequal.png',cv2.IMREAD_GRAYSCALE)
     imgtired = cv2.imread('imgtired.png',cv2.IMREAD_GRAYSCALE)
+    blobber = cv2.imread('blobber.png',cv2.IMREAD_GRAYSCALE)
 
 
     def __init__(self,
                  client="Stardew Valley",
-                 show_preview=True):
+                 show_preview=False):
 
         self.client = client
         # variables for other implementations from the web in order to avoid errors
@@ -120,7 +121,7 @@ class svEnv(gym.Env):
         # debugging purposes // showing more cv2 windows
         self.show_preview = show_preview
         # resetting at the end of initialization in order to identify window
-        self.reset()
+        #self.reset()
 
     def close(self):
         '''
@@ -172,21 +173,23 @@ class svEnv(gym.Env):
         #print("action: {}".format(action))
         if action == '[ True False]':
             self.PressKey(self.C)
-            print("use tool")
+            #print("step action: press c")
         if action == '[False  True]':
             self.ReleaseKey(self.C)
+            #print("step action: release c")
         
 
         # observe environment
         img =  self.grab_fishing_screen()
         # reward calculation
-        reward = self.reward + 1
-        self.reward = reward
+        reward = self.reward
         
         # done flag in order to go to next episode
         if self.done == True:
-            done = True
+            # done flag increases episode counter, but also resets environment
+            #done = True
             reward = 0
+            self.ReleaseKey(self.C)
             print('catching done')
             time.sleep(2)
             self.PressAndReleaseKey(self.X)
@@ -243,14 +246,19 @@ class svEnv(gym.Env):
         self.PressKey(self.D)
         time.sleep(2.9)
         self.ReleaseKey(self.D)
+        time.sleep(0.5)
 
     def hookfish(self):
         
         # cast rod
-        self.PressKey(self.C)
-        time.sleep(1.04)
-        self.ReleaseKey(self.C)
-        time.sleep(0.1)
+        polecasted = False
+        while polecasted == False:
+            self.PressKey(self.C)
+            time.sleep(1.04)
+            self.ReleaseKey(self.C)
+            time.sleep(1)
+            polecasted = self.grab_blobber_screen()
+        
 
         hook = False
         while hook == False:
@@ -267,7 +275,7 @@ class svEnv(gym.Env):
         self.grab_fishing_screen()
 
         if self.done == True:
-            print("but it wasn't a  not a fish")
+            print("but it wasn't a fish")
             self.nofish += 1
             
             time.sleep(0.5)
@@ -280,23 +288,15 @@ class svEnv(gym.Env):
             # repeat
             self.hookfish()
 
-        
-       
-
     # image grabbing by Frannecklp
     # https://pythonprogramming.net/next-steps-python-plays-gta-v/
-    def grab_fishing_screen(self, region=None):
+    def grab_fishing_screen(self):
         hwin = win32gui.GetDesktopWindow()
 
-        if region:
-                left,top,x2,y2 = region
-                width = x2 - left
-                height = y2 - top
-        else:
-            width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
-            height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
-            left = win32api.GetSystemMetrics(win32con.SM_XVIRTUALSCREEN)
-            top = win32api.GetSystemMetrics(win32con.SM_YVIRTUALSCREEN)
+        width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
+        height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
+        left = win32api.GetSystemMetrics(win32con.SM_XVIRTUALSCREEN)
+        top = win32api.GetSystemMetrics(win32con.SM_YVIRTUALSCREEN)
 
         hwindc = win32gui.GetWindowDC(hwin)
         srcdc = win32ui.CreateDCFromHandle(hwindc)
@@ -339,8 +339,10 @@ class svEnv(gym.Env):
             
             #print(max_val)
             if max_val > 0.5:
-                self.reward = 1
+                self.reward = max_val
                 print("receiving reward: ", max_val)
+            else:
+                self.reward = 0
               
 
         else:
@@ -359,18 +361,13 @@ class svEnv(gym.Env):
         img = img.flatten() 
         return img
 
-    def grab_exclamation_screen(self, region=None):
+    def grab_exclamation_screen(self):
         hwin = win32gui.GetDesktopWindow()
 
-        if region:
-                left,top,x2,y2 = region
-                width = x2 - left
-                height = y2 - top
-        else:
-            width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
-            height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
-            left = win32api.GetSystemMetrics(win32con.SM_XVIRTUALSCREEN)
-            top = win32api.GetSystemMetrics(win32con.SM_YVIRTUALSCREEN)
+        width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
+        height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
+        left = win32api.GetSystemMetrics(win32con.SM_XVIRTUALSCREEN)
+        top = win32api.GetSystemMetrics(win32con.SM_YVIRTUALSCREEN)
 
         hwindc = win32gui.GetWindowDC(hwin)
         srcdc = win32ui.CreateDCFromHandle(hwindc)
@@ -443,6 +440,57 @@ class svEnv(gym.Env):
         #img = img.flatten() 
         return hook
 
+    def grab_blobber_screen(self):
+        hwin = win32gui.GetDesktopWindow()
+
+        width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
+        height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
+        left = win32api.GetSystemMetrics(win32con.SM_XVIRTUALSCREEN)
+        top = win32api.GetSystemMetrics(win32con.SM_YVIRTUALSCREEN)
+
+        hwindc = win32gui.GetWindowDC(hwin)
+        srcdc = win32ui.CreateDCFromHandle(hwindc)
+        memdc = srcdc.CreateCompatibleDC()
+        bmp = win32ui.CreateBitmap()
+        bmp.CreateCompatibleBitmap(srcdc, width, height)
+        memdc.SelectObject(bmp)
+        memdc.BitBlt((0, 0), (width, height), srcdc, (left, top), win32con.SRCCOPY)
+
+        signedIntsArray = bmp.GetBitmapBits(True)
+        img = np.frombuffer(signedIntsArray, dtype='uint8')
+
+        # 4224 is total pixel width
+        # 1080 is total monitor height
+        img = img.reshape((1080,4224,4))
+        
+        srcdc.DeleteDC()
+        memdc.DeleteDC()
+        win32gui.ReleaseDC(hwin, hwindc)
+        win32gui.DeleteObject(bmp.GetHandle())
+        
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+
+        # blobber area
+        img = img[510:560, 1280+1050:1280+1250]
+    
+        # find exclamation marc
+        result=cv2.matchTemplate(img,self.blobber,cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, _ = cv2.minMaxLoc(result)
+        blobber = False
+        if max_val > 0.80:
+            #blobber = True
+            print("blobber in water")
+
+
+        #preview
+        if self.show_preview == True:
+            cv2.imshow('Processed_Video', img)
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                cv2.destroyAllWindows()
+
+        #img = img.flatten() 
+        return blobber
+
     def PressAndReleaseKey(self, hexKeyCode):
         self.PressKey(hexKeyCode)
         time.sleep(0.2)
@@ -503,6 +551,7 @@ if __name__ == '__main__':
     print('It should reset the day and hook a fish.')
     #print('You can take some snapshots of the windows by pressing q when selecting a cv2 img')
     env = svEnv(show_preview = False)
+    env.reset()
     for _ in range(500000):
         env.step('nothing')
         if cv2.waitKey(0) & 0xFF == ord('q'):

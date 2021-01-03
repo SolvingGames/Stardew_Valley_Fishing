@@ -6,6 +6,7 @@ inputclasses.py
 make.py
 play.py
 svgymwrapped.py
+learn.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
