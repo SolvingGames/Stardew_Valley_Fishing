@@ -99,13 +99,14 @@ class svEnv(gym.Env):
     fish = cv2.imread('fish.png',cv2.IMREAD_GRAYSCALE)
     donefish = cv2.imread('donefish.png',cv2.IMREAD_GRAYSCALE)
     imgequal = cv2.imread('imgequal.png',cv2.IMREAD_GRAYSCALE)
-    imgtired = cv2.imread('imgtired.png',cv2.IMREAD_GRAYSCALE)
+    tired = cv2.imread('tired.png',cv2.IMREAD_GRAYSCALE)
     blobber = cv2.imread('blobber.png',cv2.IMREAD_GRAYSCALE)
+    twelve = cv2.imread('twelve.png',cv2.IMREAD_GRAYSCALE)
+    am = cv2.imread('am.png',cv2.IMREAD_GRAYSCALE)
 
 
     def __init__(self,
-                 client="Stardew Valley",
-                 show_preview=False):
+                 client="Stardew Valley"):
 
         self.client = client
         # variables for other implementations from the web in order to avoid errors
@@ -118,8 +119,6 @@ class svEnv(gym.Env):
         # done flag
 
         self.done = False
-        # debugging purposes // showing more cv2 windows
-        self.show_preview = show_preview
         # resetting at the end of initialization in order to identify window
         #self.reset()
 
@@ -157,33 +156,41 @@ class svEnv(gym.Env):
        # get into starting position
        self.resetday()
 
-       # start fishing
-       self.hookfish()
-
        # grab img for initial observation
-       img = self.grab_fishing_screen()
-       self.episode_start = time.time()
+       img = self.hookfish()
        return img
 
     def step(self, action):
-        
-        self.done = False
-        done = False
-        action = str(action) #probably dumbest way of doing this
-        #print("action: {}".format(action))
-        if action == '[ True False]':
-            self.PressKey(self.C)
-            #print("step action: press c")
-        if action == '[False  True]':
-            self.ReleaseKey(self.C)
-            #print("step action: release c")
-        
 
-        # observe environment
-        img =  self.grab_fishing_screen()
-        # reward calculation
-        reward = self.reward
+        if self.done == True:
+            # hook another fish
+            time.sleep(1)
+            self.hookfish()
+
+            # to avoid errors, 1 step after catching a fish
+            # or catching trash, we'll give the following information
+            img = None
+            reward = self.reward
+        else:
         
+            action = str(action) #probably dumbest way of doing this
+            #print("action: {}".format(action))
+            if action == '[ True False]':
+                self.PressKey(self.C)
+                #print("step action: press c")
+            if action == '[False  True]':
+                self.ReleaseKey(self.C)
+                #print("step action: release c")
+            
+            # observe environment
+            img =  self.grab_fishing_screen()
+            # reward calculation
+            reward = self.reward
+            print("reward: ", reward)
+
+        
+        # buggy as hell, logic error
+        '''
         # done flag in order to go to next episode
         if self.done == True:
             # done flag increases episode counter, but also resets environment
@@ -195,7 +202,10 @@ class svEnv(gym.Env):
             self.PressAndReleaseKey(self.X)
             time.sleep(1)
             self.hookfish()
-        
+        '''
+
+        done = False
+
         return img, reward, done, self.info
 
     def resetday(self):
@@ -249,47 +259,73 @@ class svEnv(gym.Env):
         time.sleep(0.5)
 
     def hookfish(self):
-        
-        # cast rod
-        polecasted = False
-        while polecasted == False:
-            self.PressKey(self.C)
-            time.sleep(1.04)
-            self.ReleaseKey(self.C)
-            time.sleep(1)
-            polecasted = self.grab_blobber_screen()
-        
 
-        hook = False
-        while hook == False:
-            hook = self.grab_exclamation_screen()
+        # check if inventory is full
+            # if yes, reset day
+        # check if it is late
+            # if yes, reset day
         
-        # reel in rod
-        self.PressAndReleaseKey(self.C)
-
-        # sleep a little bit to account for animation
-        time.sleep(1.5)
-
+        # cast fishing rod
+            # tired?
+                # if yes, reset day
+            # bobber in water?
+                # if yes, ok go ahead
+                # if no, recast fishing rod
+        
+        # wait for fish
+        # if exclamation mark
+            #start reeling in fish
+        
         # check if we hooked a fish
-        # grab fishing screen in order to update reward
-        self.grab_fishing_screen()
+            # if not: press c
+            # of yes:
+                # start step() until no fish on screen
 
-        if self.done == True:
-            print("but it wasn't a fish")
-            self.nofish += 1
-            
-            time.sleep(0.5)
+        resetcondition = self.check_for_reset()
 
-            # click away message
+        if not resetcondition:
+        
+            print("casting rod now")
+            polecasted = False
+            while polecasted == False:
+                self.PressKey(self.C)
+                time.sleep(1.04)
+                self.ReleaseKey(self.C)
+                time.sleep(1)
+                polecasted = self.grab_blobber_screen()
+        
+            print("waiting for fish")
+            hook = False
+            while hook == False:
+                hook = self.grab_exclamation_screen()
+        
+            # reel in rod
             self.PressAndReleaseKey(self.C)
 
-            time.sleep(0.5)
+            # sleep a little bit to account for animation
+            time.sleep(1.5)
+
+            # check if we hooked a fish
+            # grab fishing screen in order to update reward
+            img = self.grab_fishing_screen()
+
+            if self.done == True:
+                print("but it wasn't a fish")
+                self.nofish += 1
+                
+                time.sleep(0.5)
+
+                # click away message
+                self.PressAndReleaseKey(self.C)
+
+                time.sleep(0.5)
 
             # repeat
-            self.hookfish()
+            #self.hookfish()
+            return img
+        
+        self.resetday()
 
-    # image grabbing by Frannecklp
-    # https://pythonprogramming.net/next-steps-python-plays-gta-v/
     def grab_fishing_screen(self):
         hwin = win32gui.GetDesktopWindow()
 
@@ -323,7 +359,7 @@ class svEnv(gym.Env):
         # 1280 accounts for left monitor
         img = img[self.yo:self.yu, 1280+self.xl:1280+self.xr]
 
-        # done
+        # done fishing
         result=cv2.matchTemplate(img,self.donefish,cv2.TM_CCOEFF_NORMED)
         _, max_val, _, _ = cv2.minMaxLoc(result)
         #print("done, when not 1.0: ",max_val)
@@ -340,23 +376,15 @@ class svEnv(gym.Env):
             #print(max_val)
             if max_val > 0.5:
                 self.reward = max_val
-                print("receiving reward: ", max_val)
             else:
                 self.reward = 0
-              
 
         else:
             self.done = True
-            self.reward = 0
+            #self.reward = 0
             #cv2.imwrite("no_fish.png", img)
             #sys.exit()
 
-
-        #preview
-        if self.show_preview == True:
-            cv2.imshow('Processed_Video', img)
-            if cv2.waitKey(25) & 0xFF == ord('q'):
-                cv2.destroyAllWindows()
 
         img = img.flatten() 
         return img
@@ -391,10 +419,7 @@ class svEnv(gym.Env):
         
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
 
-
         # 1280 accounts for left monitor
-        imgequal = img
-        imgtired = img
         img = img[self.eyo:self.eyu, 1280+self.exl:1280+self.exr]
 
         # find exclamation marc
@@ -407,37 +432,6 @@ class svEnv(gym.Env):
             print("hooked something")
             self.hooked += 1
 
-        # ------------
-        imgequal = imgequal[956:1016, 1280+1220:1280+1280]
-        result=cv2.matchTemplate(imgequal,self.imgequal,cv2.TM_CCOEFF_NORMED)
-        _, max_val, _, _ = cv2.minMaxLoc(result)
-        if max_val < 0.6:
-            print("inventory full, resetting day")
-            #print("imgequal less than 0.6: {}".format(max_val))
-            time.sleep(1)
-            self.PressAndReleaseKey(self.C)
-            time.sleep(2)
-            self.resetday()
-
-        # ------------
-        imgtired = imgtired[357:402, 1280+928:1280+988]
-        result=cv2.matchTemplate(imgtired,self.imgtired,cv2.TM_CCOEFF_NORMED)
-        _, max_val, _, _ = cv2.minMaxLoc(result)
-        if max_val > 0.4:
-            print(r"I'm tired, resetting day")
-            #print("imgtired over 0.4: {}".format(max_val))
-            time.sleep(1)
-            self.PressAndReleaseKey(self.C)
-            time.sleep(2)
-            self.resetday()
-
-        #preview
-        if self.show_preview == True:
-            cv2.imshow('Processed_Video', img)
-            if cv2.waitKey(25) & 0xFF == ord('q'):
-                cv2.destroyAllWindows()
-
-        #img = img.flatten() 
         return hook
 
     def grab_blobber_screen(self):
@@ -477,19 +471,86 @@ class svEnv(gym.Env):
         result=cv2.matchTemplate(img,self.blobber,cv2.TM_CCOEFF_NORMED)
         _, max_val, _, _ = cv2.minMaxLoc(result)
         blobber = False
+
         if max_val > 0.80:
-            #blobber = True
+            blobber = True
             print("blobber in water")
-
-
-        #preview
-        if self.show_preview == True:
-            cv2.imshow('Processed_Video', img)
-            if cv2.waitKey(25) & 0xFF == ord('q'):
-                cv2.destroyAllWindows()
 
         #img = img.flatten() 
         return blobber
+
+    def check_for_reset(self):
+
+        hwin = win32gui.GetDesktopWindow()
+
+        width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
+        height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
+        left = win32api.GetSystemMetrics(win32con.SM_XVIRTUALSCREEN)
+        top = win32api.GetSystemMetrics(win32con.SM_YVIRTUALSCREEN)
+
+        hwindc = win32gui.GetWindowDC(hwin)
+        srcdc = win32ui.CreateDCFromHandle(hwindc)
+        memdc = srcdc.CreateCompatibleDC()
+        bmp = win32ui.CreateBitmap()
+        bmp.CreateCompatibleBitmap(srcdc, width, height)
+        memdc.SelectObject(bmp)
+        memdc.BitBlt((0, 0), (width, height), srcdc, (left, top), win32con.SRCCOPY)
+
+        signedIntsArray = bmp.GetBitmapBits(True)
+        img = np.frombuffer(signedIntsArray, dtype='uint8')
+
+        # 4224 is total pixel width
+        # 1080 is total monitor height
+        img = img.reshape((1080,4224,4))
+        
+        srcdc.DeleteDC()
+        memdc.DeleteDC()
+        win32gui.ReleaseDC(hwin, hwindc)
+        win32gui.DeleteObject(bmp.GetHandle())
+        
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+
+        resetcondition = False
+        # ------------
+        imgequal = img[956:1016, 1280+1220:1280+1280]
+        result=cv2.matchTemplate(imgequal,self.imgequal,cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, _ = cv2.minMaxLoc(result)
+
+
+        if max_val < 0.6:
+            print("inventory full, resetting day")
+            #print("imgequal less than 0.6: {}".format(max_val))
+            resetcondition = True
+
+        if not resetcondition:
+            # ------------
+            tired = img[995:1005, 1280+1880:1280+1895]
+            #cv2.imwrite("test.png", tired)
+            result=cv2.matchTemplate(tired,self.tired,cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, _ = cv2.minMaxLoc(result)
+            if max_val > 0.99:
+                print(r"I'm tired, resetting day")
+                #print("imgtired over 0.4: {}".format(max_val))
+                resetcondition = True
+
+        if not resetcondition:
+            # ------------
+            # 12 : xx am coords
+            late = img[147:179, 1280+1731:1280+1882]
+            # check if 12
+            result=cv2.matchTemplate(late,self.twelve,cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, _ = cv2.minMaxLoc(result)
+            if max_val > 0.95:
+                result=cv2.matchTemplate(late,self.am,cv2.TM_CCOEFF_NORMED)
+                _, max_val, _, _ = cv2.minMaxLoc(result)
+                if max_val > 0.95:
+                    print(r"It's late, resetting day")
+                    resetcondition = True
+       
+
+        #cv2.imwrite("test.png", late)
+        #sys.exit()
+        return resetcondition
 
     def PressAndReleaseKey(self, hexKeyCode):
         self.PressKey(hexKeyCode)
@@ -547,19 +608,17 @@ class svEnv(gym.Env):
 
 
 if __name__ == '__main__':
-    print('Executing this file should put Stardew Valley to the foreground..')
+    print('Executing this file should put Stardew Valley to the foreground.')
+    print('The player character must be in a non-busy state.')
     print('It should reset the day and hook a fish.')
-    #print('You can take some snapshots of the windows by pressing q when selecting a cv2 img')
-    env = svEnv(show_preview = False)
+    print('It will step without action for 512 steps to demonstrate the environment.')
+
+    env = svEnv()
     env.reset()
-    for _ in range(500000):
+    for _ in range(512):
         env.step('nothing')
-        if cv2.waitKey(0) & 0xFF == ord('q'):
-            
-            break
 
-    cv2.destroyAllWindows()
 
-    print("actually done")
+    print("preview over")
 
     
