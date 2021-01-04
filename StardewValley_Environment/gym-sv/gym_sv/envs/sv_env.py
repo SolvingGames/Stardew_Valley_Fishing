@@ -93,7 +93,6 @@ class svEnv(gym.Env):
     hooked = 0
     nofish = 0
 
-
     # template to detect, if we hooked a fish
     exclamation = cv2.imread('exclamation.png',cv2.IMREAD_GRAYSCALE)
     fish = cv2.imread('fish.png',cv2.IMREAD_GRAYSCALE)
@@ -169,7 +168,7 @@ class svEnv(gym.Env):
 
             # to avoid errors, 1 step after catching a fish
             # or catching trash, we'll give the following information
-            img = None
+            img = self.grab_fishing_screen()
             reward = self.reward
         else:
         
