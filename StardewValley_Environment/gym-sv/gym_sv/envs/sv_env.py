@@ -368,8 +368,8 @@ class svEnv(gym.Env):
 
             # reward
             #cv2.imwrite("winner.png", img)
-            _ , img = cv2.threshold(img, 170, 240, cv2.THRESH_BINARY)
-            result=cv2.matchTemplate(img,self.fish,cv2.TM_CCOEFF_NORMED)
+            _ , cpimg = cv2.threshold(img, 170, 240, cv2.THRESH_BINARY)
+            result=cv2.matchTemplate(cpimg,self.fish,cv2.TM_CCOEFF_NORMED)
             _, max_val, _, _ = cv2.minMaxLoc(result)
             
             #print(max_val)
