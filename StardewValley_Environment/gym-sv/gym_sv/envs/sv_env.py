@@ -195,7 +195,9 @@ class svEnv(gym.Env):
                 # close fishing mini game
                 self.PressAndReleaseKey(self.E)
                 time.sleep(0.5)
-                self.reset()
+                # ends episode
+                #change naming convention
+                done = true
 
         else:
             # we expect to enter this else ones after catching or losing a fish
