@@ -103,6 +103,7 @@ class svEnv(gym.Env):
     twelve = cv2.imread('twelve.png',cv2.IMREAD_GRAYSCALE)
     am = cv2.imread('am.png',cv2.IMREAD_GRAYSCALE)
     obs = cv2.imread('obs.png',cv2.IMREAD_GRAYSCALE)
+    fishing = cv2.imread('fishing.png',cv2.IMREAD_GRAYSCALE)
 
 
     def __init__(self,
@@ -120,6 +121,8 @@ class svEnv(gym.Env):
 
         self.done = True
         self.stepcounter = 0
+        self.steps_per_episode = 512
+        self.counter = 1
 
     def close(self):
         '''
@@ -141,30 +144,41 @@ class svEnv(gym.Env):
         return
         
     def reset(self):
-       '''
-       Resetting the environment means bringing the agent to the same point from where an episode starts.
-       Method is expected to return the initial observation by gym standards.
-       '''
-       try:
-           self.app = Application().connect(title_re=self.client)
-           self.app.top_window().set_focus()
-       except:
-           raise OSError('Could not find environment window. Make sure to open the environment first or close windows which share the same name.')            
-       
-       
-       # get into starting position
-       self.resetday()
+        '''
+        Resetting the environment means bringing the agent to the same point from where an episode starts.
+        Method is expected to return the initial observation by gym standards.
+        '''
+        try:
+            self.app = Application().connect(title_re=self.client)
+            self.app.top_window().set_focus()
+        except:
+            raise OSError('Could not find environment window. Make sure to open the environment first or close windows which share the same name.')            
 
-       # basic img to avoid errors.
-       # This is the same observation that would be made anyways
-       # self.obs will be overwritten in prgramm flow
-       img = self.obs
-       return img
+        
+        # check, if we are currently in casting animation
+        if self.check_if_fishing():
+            self.PressAndReleaseKey(self.C)
+            time.sleep(1)
+            self.PressAndReleaseKey(self.C)
+            time.sleep(1)
+
+
+
+        # get into starting position
+        self.resetday()
+
+        # basic img to avoid errors.
+        # This is the same observation that would be made anyways
+        # self.obs will be overwritten in prgramm flow
+        img = self.obs
+        return img
 
     def step(self, action):
         #print("enter step function")
+        done = False
 
         if self.done == False:
+            
             # these are real steps
             #print("in step function, catching fish")
 
@@ -173,31 +187,43 @@ class svEnv(gym.Env):
                 self.PressKey(self.C)
                 #print("step action: press c")
             if action[1] == True:
-                self.ReleaseKey(self.C)
+                self.ReleaseKey(self.C) 
                 #print("step action: release c")
             
             # observation
             img = self.grab_fishing_screen()
             self.obs = img
+            # reward
             reward = self.reward
 
             # reward calculation
             reward = self.reward
+            # the longer the catch the more punishing/rewarding
+            reward = reward * (1 + self.counter / 100)
             if reward == 0:
                 reward = -1
-            print("reward: ", reward)
+                self.counter = 1
+            else:
+                self.counter += 1
+            
+            
+            #print("reward: ", reward)
 
-            if self.stepcounter > 1024:
-                time.sleep(0.5)
+            if self.stepcounter == self.steps_per_episode:
                 # close fishing mini game
                 self.PressAndReleaseKey(self.E)
-                time.sleep(0.5)
+                print("Ending Episode")
+                time.sleep(3)
                 # ends episode
                 #change naming convention
                 done = True
+                self.done = True
+                self.stepcounter = -1
+                
             self.stepcounter += 1
 
         else:
+            self.counter = 1
             # we expect to enter this else ones after catching or losing a fish
             # input (action) doesn't matter
             # we give the last observation and reward
@@ -208,7 +234,7 @@ class svEnv(gym.Env):
             reward = self.reward
             if reward == 0:
                 reward = -1
-            print("step: {}/1024, reward: {:.2f}".format(self.stepcounter, reward))
+            
 
             # click away message, if we caught a fish
             # don't click anything, if we didn't catch a fish
@@ -220,7 +246,7 @@ class svEnv(gym.Env):
             # still need to hook a fish
             self.hookfish()
 
-
+        print("step: {}/{} || reward: {:.2f}".format(self.stepcounter, self.steps_per_episode, reward))
         return img, reward, done, self.info
 
     def resetday(self):
@@ -590,6 +616,53 @@ class svEnv(gym.Env):
         #cv2.imwrite("test.png", late)
         #sys.exit()
         return resetcondition
+
+    def check_if_fishing(self):
+
+        hwin = win32gui.GetDesktopWindow()
+
+        width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
+        height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
+        left = win32api.GetSystemMetrics(win32con.SM_XVIRTUALSCREEN)
+        top = win32api.GetSystemMetrics(win32con.SM_YVIRTUALSCREEN)
+
+        hwindc = win32gui.GetWindowDC(hwin)
+        srcdc = win32ui.CreateDCFromHandle(hwindc)
+        memdc = srcdc.CreateCompatibleDC()
+        bmp = win32ui.CreateBitmap()
+        bmp.CreateCompatibleBitmap(srcdc, width, height)
+        memdc.SelectObject(bmp)
+        memdc.BitBlt((0, 0), (width, height), srcdc, (left, top), win32con.SRCCOPY)
+
+        signedIntsArray = bmp.GetBitmapBits(True)
+        img = np.frombuffer(signedIntsArray, dtype='uint8')
+
+        # 4224 is total pixel width
+        # 1080 is total monitor height
+        img = img.reshape((1080,4224,4))
+        
+        srcdc.DeleteDC()
+        memdc.DeleteDC()
+        win32gui.ReleaseDC(hwin, hwindc)
+        win32gui.DeleteObject(bmp.GetHandle())
+        
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+
+        currently_fishing = False
+        # ------------
+        img = img[410:465, 1280+880:1280+930]
+
+        result=cv2.matchTemplate(img,self.fishing,cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, _ = cv2.minMaxLoc(result)
+
+
+        if max_val > 0.9:
+            print("currently fishing, canceling action.")
+            currently_fishing = True
+
+        #cv2.imwrite("test.png", img)
+        #sys.exit()
+        return currently_fishing
 
     def PressAndReleaseKey(self, hexKeyCode):
         self.PressKey(hexKeyCode)
