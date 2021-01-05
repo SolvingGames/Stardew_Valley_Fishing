@@ -208,7 +208,7 @@ class svEnv(gym.Env):
             reward = self.reward
             if reward == 0:
                 reward = -1
-            print("step: {}/1500, reward: {:.2f}".format(self.stepcounter, reward))
+            print("step: {}/1024, reward: {:.2f}".format(self.stepcounter, reward))
 
             # click away message, if we caught a fish
             # don't click anything, if we didn't catch a fish
