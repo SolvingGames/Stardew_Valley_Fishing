@@ -102,6 +102,7 @@ class svEnv(gym.Env):
     blobber = cv2.imread('blobber.png',cv2.IMREAD_GRAYSCALE)
     twelve = cv2.imread('twelve.png',cv2.IMREAD_GRAYSCALE)
     am = cv2.imread('am.png',cv2.IMREAD_GRAYSCALE)
+    obs = cv2.imread('obs.png',cv2.IMREAD_GRAYSCALE)
 
 
     def __init__(self,
@@ -114,10 +115,10 @@ class svEnv(gym.Env):
         self.metadata = None
         self.info = []
         # reward extraction defaults
-        self.reward = 0
+        self.reward = 1
         # done flag
 
-        self.done = False
+        self.done = True
         # resetting at the end of initialization in order to identify window
         #self.reset()
 
@@ -155,39 +156,63 @@ class svEnv(gym.Env):
        # get into starting position
        self.resetday()
 
-       # grab img for initial observation
-       img = self.hookfish()
+       # basic img to avoid errors.
+       # This is the same observation that would be made anyways
+       # self.obs will be overwritten in prgramm flow
+       img = self.obs
        return img
 
     def step(self, action):
+        #print("enter step function")
 
-        if self.done == True:
-            # hook another fish
-            time.sleep(1)
-            self.hookfish()
+        if self.done == False:
 
-            # to avoid errors, 1 step after catching a fish
-            # or catching trash, we'll give the following information
-            img = self.grab_fishing_screen()
-            reward = self.reward
-        else:
-        
-            action = str(action) #probably dumbest way of doing this
-            #print("action: {}".format(action))
-            if action == '[ True False]':
+            #print("in step function, catching fish")
+
+            # action decoding
+            if action[0] == True:
                 self.PressKey(self.C)
                 #print("step action: press c")
-            if action == '[False  True]':
+            if action[1] == True:
                 self.ReleaseKey(self.C)
                 #print("step action: release c")
             
-            # observe environment
-            img =  self.grab_fishing_screen()
+            # observation
+            img = self.grab_fishing_screen()
+            self.obs = img
+            reward = self.reward
+
             # reward calculation
             reward = self.reward
+            if reward == 0:
+                reward = -1
+            print("reward: ", reward)
+        else:
+            # we expect to enter this else ones after catching or losing a fish
+            # input (action) doesn't matter
+            # we give the last observation and reward
+            # this kind of makes sense with the fishing game and the momentum
+            # of the green bar in mind
+            img = self.obs
+
+            reward = self.reward
+            if reward == 0:
+                reward = -1
             print("reward: ", reward)
 
-        
+            # click away message, if we caught a fish
+            # don't click anything, if we didn't catch a fish
+            time.sleep(0.5)
+            self.PressAndReleaseKey(self.X)
+            time.sleep(0.5)
+
+
+            # still need to hook a fish
+            self.hookfish()
+
+
+
+
         # buggy as hell, logic error
         '''
         # done flag in order to go to next episode
@@ -306,24 +331,48 @@ class svEnv(gym.Env):
 
             # check if we hooked a fish
             # grab fishing screen in order to update reward
-            img = self.grab_fishing_screen()
 
-            if self.done == True:
-                print("but it wasn't a fish")
-                self.nofish += 1
+            while self.done == True:
+                print("self.done: ", self.done)
+                img = self.grab_fishing_screen()
+
+                if self.done == True:
+                    print("but it wasn't a fish")
+                    self.nofish += 1
+                    
+                    time.sleep(0.5)
+
+                    # click away message
+                    self.PressAndReleaseKey(self.C)
+
+                    time.sleep(0.5)
+
+                    print("casting rod now")
+
+                    polecasted = False
+                    while polecasted == False:
+                        self.PressKey(self.C)
+                        time.sleep(1.04)
+                        self.ReleaseKey(self.C)
+                        time.sleep(1)
+                        polecasted = self.grab_blobber_screen()
                 
-                time.sleep(0.5)
+                    print("waiting for fish")
+                    hook = False
+                    while hook == False:
+                        hook = self.grab_exclamation_screen()
+                
+                    # reel in rod
+                    self.PressAndReleaseKey(self.C)
 
-                # click away message
-                self.PressAndReleaseKey(self.C)
+                    # sleep a little bit to account for animation
+                    time.sleep(1.5)
 
-                time.sleep(0.5)
-
-            # repeat
-            #self.hookfish()
-            return img
+            print("we hooked a fish, let's catch it.")
+            #return img
         
-        self.resetday()
+        if resetcondition:
+            self.resetday()
 
     def grab_fishing_screen(self):
         hwin = win32gui.GetDesktopWindow()
@@ -363,27 +412,26 @@ class svEnv(gym.Env):
         _, max_val, _, _ = cv2.minMaxLoc(result)
         #print("done, when not 1.0: ",max_val)
         if max_val > 0.9:
+            #print("fish on screen max_val:",max_val)
             # fish is on screen
             self.done = False
 
             # reward
-            #cv2.imwrite("winner.png", img)
             _ , cpimg = cv2.threshold(img, 170, 240, cv2.THRESH_BINARY)
             result=cv2.matchTemplate(cpimg,self.fish,cv2.TM_CCOEFF_NORMED)
             _, max_val, _, _ = cv2.minMaxLoc(result)
             
             #print(max_val)
-            if max_val > 0.5:
+            if max_val > 0.52:
                 self.reward = max_val
             else:
                 self.reward = 0
 
-        else:
-            self.done = True
-            #self.reward = 0
-            #cv2.imwrite("no_fish.png", img)
+            #cv2.imwrite("test.png", img)
             #sys.exit()
 
+        else:
+            self.done = True
 
         img = img.flatten() 
         return img
@@ -473,7 +521,9 @@ class svEnv(gym.Env):
 
         if max_val > 0.80:
             blobber = True
-            print("blobber in water")
+        else:
+            print("blobber not in water")
+            self.resetday()
 
         #img = img.flatten() 
         return blobber
@@ -546,7 +596,6 @@ class svEnv(gym.Env):
                     print(r"It's late, resetting day")
                     resetcondition = True
        
-
         #cv2.imwrite("test.png", late)
         #sys.exit()
         return resetcondition
