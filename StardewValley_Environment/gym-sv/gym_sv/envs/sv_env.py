@@ -119,8 +119,7 @@ class svEnv(gym.Env):
         # done flag
 
         self.done = True
-        # resetting at the end of initialization in order to identify window
-        #self.reset()
+        self.stepcounter = -1
 
     def close(self):
         '''
@@ -166,6 +165,9 @@ class svEnv(gym.Env):
         #print("enter step function")
 
         if self.done == False:
+            # these are real steps
+
+            stepcounter += 1
 
             #print("in step function, catching fish")
 
@@ -187,6 +189,14 @@ class svEnv(gym.Env):
             if reward == 0:
                 reward = -1
             print("reward: ", reward)
+
+            if stepcounter > 1500:
+                time.sleep(0.5)
+                # close fishing mini game
+                self.PressAndReleaseKey(self.E)
+                time.sleep(0.5)
+                self.reset()
+
         else:
             # we expect to enter this else ones after catching or losing a fish
             # input (action) doesn't matter
@@ -198,7 +208,7 @@ class svEnv(gym.Env):
             reward = self.reward
             if reward == 0:
                 reward = -1
-            print("reward: ", reward)
+            print("step: {}/1500, reward: {:.2f}".format(stepcounter, reward))
 
             # click away message, if we caught a fish
             # don't click anything, if we didn't catch a fish
@@ -209,6 +219,9 @@ class svEnv(gym.Env):
 
             # still need to hook a fish
             self.hookfish()
+
+
+
 
 
 
@@ -333,7 +346,7 @@ class svEnv(gym.Env):
             # grab fishing screen in order to update reward
 
             while self.done == True:
-                print("self.done: ", self.done)
+                #print("self.done: ", self.done)
                 img = self.grab_fishing_screen()
 
                 if self.done == True:
