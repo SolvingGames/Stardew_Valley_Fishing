@@ -7,6 +7,7 @@ make.py
 play.py
 svgymwrapped.py
 learn.py
+DQNlearn.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
