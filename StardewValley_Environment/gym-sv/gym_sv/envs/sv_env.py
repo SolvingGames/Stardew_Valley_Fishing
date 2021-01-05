@@ -119,7 +119,7 @@ class svEnv(gym.Env):
         # done flag
 
         self.done = True
-        self.stepcounter = -1
+        self.stepcounter = 0
 
     def close(self):
         '''
@@ -166,9 +166,6 @@ class svEnv(gym.Env):
 
         if self.done == False:
             # these are real steps
-
-            stepcounter += 1
-
             #print("in step function, catching fish")
 
             # action decoding
@@ -190,14 +187,15 @@ class svEnv(gym.Env):
                 reward = -1
             print("reward: ", reward)
 
-            if stepcounter > 1500:
+            if self.stepcounter > 1024:
                 time.sleep(0.5)
                 # close fishing mini game
                 self.PressAndReleaseKey(self.E)
                 time.sleep(0.5)
                 # ends episode
                 #change naming convention
-                done = true
+                done = True
+            self.stepcounter += 1
 
         else:
             # we expect to enter this else ones after catching or losing a fish
@@ -210,7 +208,7 @@ class svEnv(gym.Env):
             reward = self.reward
             if reward == 0:
                 reward = -1
-            print("step: {}/1500, reward: {:.2f}".format(stepcounter, reward))
+            print("step: {}/1500, reward: {:.2f}".format(self.stepcounter, reward))
 
             # click away message, if we caught a fish
             # don't click anything, if we didn't catch a fish
@@ -222,28 +220,6 @@ class svEnv(gym.Env):
             # still need to hook a fish
             self.hookfish()
 
-
-
-
-
-
-
-        # buggy as hell, logic error
-        '''
-        # done flag in order to go to next episode
-        if self.done == True:
-            # done flag increases episode counter, but also resets environment
-            #done = True
-            reward = 0
-            self.ReleaseKey(self.C)
-            print('catching done')
-            time.sleep(2)
-            self.PressAndReleaseKey(self.X)
-            time.sleep(1)
-            self.hookfish()
-        '''
-
-        done = False
 
         return img, reward, done, self.info
 
