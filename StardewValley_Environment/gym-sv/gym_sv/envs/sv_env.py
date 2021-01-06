@@ -124,6 +124,8 @@ class svEnv(gym.Env):
         self.steps_per_episode = 512
         self.counter = 1
 
+        self.screenshotcounter = 0
+
     def close(self):
         '''
         Closing the game or minimizing the game could be implemented here.
@@ -219,6 +221,7 @@ class svEnv(gym.Env):
                 done = True
                 self.done = True
                 self.stepcounter = -1
+                self.take_screenshot("episode_end")
                 
             self.stepcounter += 1
 
@@ -250,6 +253,8 @@ class svEnv(gym.Env):
         return img, reward, done, self.info
 
     def resetday(self):
+
+        self.take_screenshot("resetday")
 
         print("Things hooked today: {}".format(self.hooked))
         print("Fish hooked today: {}".format(self.hooked - self.nofish))
@@ -300,6 +305,8 @@ class svEnv(gym.Env):
         time.sleep(0.5)
 
     def hookfish(self):
+
+        self.take_screenshot("hookfish")
 
         # check if inventory is full
             # if yes, reset day
@@ -663,6 +670,45 @@ class svEnv(gym.Env):
         #cv2.imwrite("test.png", img)
         #sys.exit()
         return currently_fishing
+
+    def screenshot(self):
+
+        hwin = win32gui.GetDesktopWindow()
+
+        width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
+        height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
+        left = win32api.GetSystemMetrics(win32con.SM_XVIRTUALSCREEN)
+        top = win32api.GetSystemMetrics(win32con.SM_YVIRTUALSCREEN)
+
+        hwindc = win32gui.GetWindowDC(hwin)
+        srcdc = win32ui.CreateDCFromHandle(hwindc)
+        memdc = srcdc.CreateCompatibleDC()
+        bmp = win32ui.CreateBitmap()
+        bmp.CreateCompatibleBitmap(srcdc, width, height)
+        memdc.SelectObject(bmp)
+        memdc.BitBlt((0, 0), (width, height), srcdc, (left, top), win32con.SRCCOPY)
+
+        signedIntsArray = bmp.GetBitmapBits(True)
+        img = np.frombuffer(signedIntsArray, dtype='uint8')
+
+        # 4224 is total pixel width
+        # 1080 is total monitor height
+        img = img.reshape((1080,4224,4))
+        
+        srcdc.DeleteDC()
+        memdc.DeleteDC()
+        win32gui.ReleaseDC(hwin, hwindc)
+        win32gui.DeleteObject(bmp.GetHandle())
+        
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+
+        return img
+
+    def take_screenshot(self, filename):
+        # save a screenshot to analyse what went wrong, when I'm gone
+        file = "screenshots/{}{}}.png".format(self.screenshotcounter,filename)
+        cv2.imwrite(file, self.screenshot())
+        self.screenshotcounter += 1
 
     def PressAndReleaseKey(self, hexKeyCode):
         self.PressKey(hexKeyCode)
